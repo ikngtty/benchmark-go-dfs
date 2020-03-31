@@ -4,8 +4,6 @@ import (
 	"github.com/ikngtty/benchmark-go-dfs/tree"
 )
 
-const maxStackLen = 1048575 // 2^20 - 1
-
 func FindPathRec(
 	node *tree.Node,
 	destValue tree.NodeValue,
@@ -41,9 +39,10 @@ func findReversedPathRec(
 	return nil
 }
 
-type nodeWithParent struct {
-	Node   *tree.Node
-	Parent *nodeWithParent
+type nodePath struct {
+	Parent       *nodePath
+	Node         *tree.Node
+	NextChildPos int
 }
 
 func FindPathLoop(
@@ -51,45 +50,46 @@ func FindPathLoop(
 	destValue tree.NodeValue,
 ) []tree.NodeValue {
 
-	pathRoot := nodeWithParent{node, nil}
-	pathStack := make([]*nodeWithParent, maxStackLen)
-	pathStack[0] = &pathRoot
-	pathStackLen := 1
+	rootPath := nodePath{nil, node, 0}
+	curPath := &rootPath
 
-	for pathStackLen > 0 {
-		// pop
-		pathItem := pathStack[pathStackLen-1]
-		pathStack[pathStackLen-1] = nil
-		pathStackLen--
-
-		node := pathItem.Node
-		if node.Value == destValue {
-			return traceBackParents(pathItem)
+	for {
+		if curPath.Node.Value == destValue {
+			return traceBackParents(curPath)
 		}
 
-		for _, child := range node.Children {
-			item := nodeWithParent{child, pathItem}
-			// push
-			pathStack[pathStackLen] = &item
-			pathStackLen++
+		if curPath.NextChildPos >= len(curPath.Node.Children) {
+			// pop
+			curPath = curPath.Parent
+			if curPath == nil {
+				break
+			}
+
+			curPath.NextChildPos++
+			continue
 		}
+
+		childNode := curPath.Node.Children[curPath.NextChildPos]
+		// push
+		childPath := nodePath{curPath, childNode, 0}
+		curPath = &childPath
 	}
 
 	return nil
 }
 
-func traceBackParents(np *nodeWithParent) []tree.NodeValue {
+func traceBackParents(path *nodePath) []tree.NodeValue {
 	reversedPath := []tree.NodeValue{}
-	cur := np
+	cur := path
 	for cur != nil {
 		reversedPath = append(reversedPath, cur.Node.Value)
 		cur = cur.Parent
 	}
 
 	pathLen := len(reversedPath)
-	path := make([]tree.NodeValue, pathLen)
+	values := make([]tree.NodeValue, pathLen)
 	for i := 0; i < pathLen; i++ {
-		path[i] = reversedPath[pathLen-1-i]
+		values[i] = reversedPath[pathLen-1-i]
 	}
-	return path
+	return values
 }
