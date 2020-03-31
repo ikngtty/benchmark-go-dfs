@@ -4,6 +4,8 @@ import (
 	"github.com/ikngtty/benchmark-go-dfs/tree"
 )
 
+const maxStackLen = 1048575 // 2^20 - 1
+
 func FindPathRec(
 	node *tree.Node,
 	destValue tree.NodeValue,
@@ -50,33 +52,27 @@ func FindPathLoop(
 ) []tree.NodeValue {
 
 	pathRoot := nodeWithParent{node, nil}
-	// HACK: I guess static size is more fast.
-	pathStack := []*nodeWithParent{&pathRoot}
+	pathStack := make([]*nodeWithParent, maxStackLen)
+	pathStack[0] = &pathRoot
+	pathStackLen := 1
 
-	for len(pathStack) > 0 {
+	for pathStackLen > 0 {
 		// pop
-		pathItem := pathStack[len(pathStack)-1]
-		pathStack = pathStack[:len(pathStack)-1]
+		pathItem := pathStack[pathStackLen-1]
+		pathStack[pathStackLen-1] = nil
+		pathStackLen--
 
 		node := pathItem.Node
 		if node.Value == destValue {
 			return traceBackParents(pathItem)
 		}
 
-		children := node.Children
-		if children == nil {
-			continue
-		}
-
-		childrenLen := len(children)
-		itemsToPush := make([]*nodeWithParent, childrenLen)
-		for i, child := range children {
+		for _, child := range node.Children {
 			item := nodeWithParent{child, pathItem}
-			itemsToPush[childrenLen-1-i] = &item
+			// push
+			pathStack[pathStackLen] = &item
+			pathStackLen++
 		}
-
-		// push
-		pathStack = append(pathStack, itemsToPush...)
 	}
 
 	return nil
